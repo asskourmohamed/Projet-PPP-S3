@@ -1,0 +1,29 @@
+
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Traduction Signe → Texte{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0" style="height: calc(100vh - 100px);">
+    <div class="row g-0 h-100">
+        <div class="col-12">
+            <iframe 
+                src="{{ flask_url }}" 
+                style="width: 100%; height: 100%; border: none;"
+                title="Détection de Langue des Signes"
+            ></iframe>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Ajustements pour l'iframe */
+    body {
+        overflow: hidden;
+    }
+    .container-fluid {
+        padding: 0 !important;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,528 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ma Progression - LSF Connect{% endblock %}
+
+{% block content %}
+<div class="container-narrow py-4">
+    <!-- Header -->
+    <div class="progression-header mb-5">
+        <h1 class="mb-3"><i class="fas fa-chart-line me-2"></i>Ma Progression</h1>
+        <p class="text-muted">Suivez votre apprentissage de la Langue des Signes Française</p>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-overview mb-5">
+        <div class="row g-4">
+            <!-- Global Progress -->
+            <div class="col-md-3 col-6">
+                <div class="stat-card bg-primary text-white">
+                    <div class="stat-icon">
+                        <i class="fas fa-globe-europe"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ stats.pourcentage_global }}%</h3>
+                        <p>Progression globale</p>
+                        <small>{{ stats.lecons_completees }}/{{ stats.total_lecons }} leçons</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Average Score -->
+            <div class="col-md-3 col-6">
+                <div class="stat-card bg-success text-white">
+                    <div class="stat-icon">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ stats.score_moyen }}</h3>
+                        <p>Score moyen</p>
+                        <small>Sur 100%</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Time Spent -->
+            <div class="col-md-3 col-6">
+                <div class="stat-card bg-info text-white">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ stats.temps_total }}</h3>
+                        <p>Temps d'apprentissage</p>
+                        <small>Total cumulé</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Current Streak -->
+            <div class="col-md-3 col-6">
+                <div class="stat-card bg-warning text-white">
+                    <div class="stat-icon">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>5</h3>
+                        <p>Jours consécutifs</p>
+                        <small>Série en cours</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress by Level -->
+    <div class="progress-by-level mb-5">
+        <h3 class="mb-4"><i class="fas fa-layer-group me-2"></i>Progression par niveau</h3>
+        <div class="row g-4">
+            {% for niveau_key, niveau_data in by_niveau.items %}
+            <div class="col-md-4">
+                <div class="level-card">
+                    <div class="level-header">
+                        <h4>
+                            {% if niveau_key == 'DEBUTANT' %}
+                            <i class="fas fa-seedling me-2 text-success"></i>Débutant
+                            {% elif niveau_key == 'INTERMEDIAIRE' %}
+                            <i class="fas fa-tree me-2 text-warning"></i>Intermédiaire
+                            {% else %}
+                            <i class="fas fa-mountain me-2 text-danger"></i>Avancé
+                            {% endif %}
+                        </h4>
+                        <span class="level-percentage">
+                            {% if niveau_data.total > 0 %}
+                            {{ niveau_data.complete|floatformat:0 }}/{{ niveau_data.total }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="progress mb-3" style="height: 10px;">
+                        <div class="progress-bar 
+                            {% if niveau_key == 'DEBUTANT' %}bg-success
+                            {% elif niveau_key == 'INTERMEDIAIRE' %}bg-warning
+                            {% else %}bg-danger{% endif %}" 
+                            role="progressbar" 
+                            style="width: {% if niveau_data.total > 0 %}{{ niveau_data.complete|divisibleby:niveau_data.total|default:0|floatformat:0 }}{% else %}0{% endif %}%"
+                            aria-valuenow="{% if niveau_data.total > 0 %}{{ niveau_data.complete|divisibleby:niveau_data.total|default:0|floatformat:0 }}{% else %}0{% endif %}" 
+                            aria-valuemin="0" 
+                            aria-valuemax="100">
+                        </div>
+                    </div>
+                    
+                    <div class="level-tutorials">
+                        {% for tutorial in niveau_data.tutorials|slice:":3" %}
+                        <div class="tutorial-item">
+                            <i class="fas fa-book me-2 text-muted"></i>
+                            <span>{{ tutorial.titre|truncatewords:3 }}</span>
+                        </div>
+                        {% empty %}
+                        <div class="text-muted small">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Aucun tutoriel commencé
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if niveau_data.tutorials|length > 3 %}
+                    <div class="text-center mt-2">
+                        <small class="text-muted">+{{ niveau_data.tutorials|length|add:"-3" }} autres</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Tutorials Progress -->
+    <div class="tutorials-progress">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3><i class="fas fa-book-open me-2"></i>Tutoriels en cours</h3>
+            <a href="{% url 'tutoriel:catalogue' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>Découvrir d'autres tutoriels
+            </a>
+        </div>
+        
+        <div class="tutorials-list">
+            {% for tutorial_data in by_tutorial %}
+            <div class="tutorial-progress-card mb-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1">{{ tutorial_data.tutorial.titre }}</h5>
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge me-2 
+                                {% if tutorial_data.tutorial.niveau == 'DEBUTANT' %}bg-success
+                                {% elif tutorial_data.tutorial.niveau == 'INTERMEDIAIRE' %}bg-warning
+                                {% else %}bg-danger{% endif %}">
+                                {{ tutorial_data.tutorial.get_niveau_display }}
+                            </span>
+                            <small class="text-muted">
+                                <i class="fas fa-play-circle me-1"></i>
+                                {{ tutorial_data.tutorial.nombre_lecons }} leçons
+                            </small>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="progress-wrapper">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small>Progression</small>
+                                <small>{{ tutorial_data.complete }}/{{ tutorial_data.total }} leçons</small>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" 
+                                     role="progressbar" 
+                                     style="width: {% widthratio tutorial_data.complete tutorial_data.total 100 %}%"
+                                     aria-valuenow="{% widthratio tutorial_data.complete tutorial_data.total 100 %}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 text-end">
+                        <div class="score-display mb-2">
+                            <span class="score-value">{{ tutorial_data.score_moyen|floatformat:0 }}%</span>
+                            <small class="text-muted d-block">Score moyen</small>
+                        </div>
+                        
+                        <div class="tutorial-actions">
+                            {% if tutorial_data.complete < tutorial_data.total %}
+                            {% with next_lecon=tutorial_data.lecons|first %}
+                            <a href="{% url 'tutoriel:lecon_detail' tutorial_id=tutorial_data.tutorial.id lecon_id=next_lecon.lecon.id %}" 
+                               class="btn btn-primary btn-sm">
+                                <i class="fas fa-play me-1"></i>
+                                {% if tutorial_data.complete > 0 %}Continuer{% else %}Commencer{% endif %}
+                            </a>
+                            {% endwith %}
+                            {% else %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check me-1"></i>Terminé
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lessons List (Collapsible) -->
+                <div class="lessons-details mt-3">
+                    <button class="btn btn-link p-0 text-decoration-none" 
+                            type="button" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#lessons-{{ tutorial_data.tutorial.id }}">
+                        <small>
+                            <i class="fas fa-chevron-down me-1"></i>
+                            Voir le détail des leçons
+                        </small>
+                    </button>
+                    
+                    <div class="collapse" id="lessons-{{ tutorial_data.tutorial.id }}">
+                        <div class="lessons-list mt-3">
+                            {% for progression in tutorial_data.lecons %}
+                            <div class="lesson-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fas 
+                                            {% if progression.est_completee %}fa-check-circle text-success
+                                            {% else %}fa-circle text-muted{% endif %} me-2">
+                                        </i>
+                                        <span>{{ progression.lecon.titre }}</span>
+                                    </div>
+                                    <div>
+                                        {% if progression.score_quiz %}
+                                        <span class="badge bg-light text-dark me-2">
+                                            Quiz: {{ progression.score_quiz }}%
+                                        </span>
+                                        {% endif %}
+                                        <small class="text-muted">
+                                            {{ progression.lecon.duree }} sec
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state text-center py-5">
+                <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Aucun tutoriel commencé</h4>
+                <p class="text-muted mb-4">Commencez votre apprentissage en explorant nos tutoriels</p>
+                <a href="{% url 'tutoriel:catalogue' %}" class="btn btn-primary">
+                    <i class="fas fa-play me-2"></i>Commencer maintenant
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Achievements -->
+    <div class="achievements mt-5">
+        <h3 class="mb-4"><i class="fas fa-award me-2"></i>Succès et badges</h3>
+        <div class="row g-3">
+            <div class="col-md-3 col-6">
+                <div class="achievement-card text-center">
+                    <div class="achievement-icon mb-2">
+                        <i class="fas fa-play-circle fa-2x text-primary"></i>
+                    </div>
+                    <h5>Premiers pas</h5>
+                    <small class="text-muted">Complétez votre première leçon</small>
+                    <div class="achievement-status mt-2">
+                        <span class="badge bg-success"><i class="fas fa-check"></i> Obtenu</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 col-6">
+                <div class="achievement-card text-center">
+                    <div class="achievement-icon mb-2">
+                        <i class="fas fa-brain fa-2x text-warning"></i>
+                    </div>
+                    <h5>Quiz Master</h5>
+                    <small class="text-muted">Score >90% à un quiz</small>
+                    <div class="achievement-status mt-2">
+                        <span class="badge bg-light text-dark"><i class="fas fa-lock"></i> À débloquer</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 col-6">
+                <div class="achievement-card text-center">
+                    <div class="achievement-icon mb-2">
+                        <i class="fas fa-fire fa-2x text-danger"></i>
+                    </div>
+                    <h5>Série de 7 jours</h5>
+                    <small class="text-muted">Apprenez 7 jours consécutifs</small>
+                    <div class="achievement-status mt-2">
+                        <span class="badge bg-light text-dark"><i class="fas fa-lock"></i> 5/7 jours</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 col-6">
+                <div class="achievement-card text-center">
+                    <div class="achievement-icon mb-2">
+                        <i class="fas fa-graduation-cap fa-2x text-success"></i>
+                    </div>
+                    <h5>Débutant confirmé</h5>
+                    <small class="text-muted">Terminez tous les tutoriels débutant</small>
+                    <div class="achievement-status mt-2">
+                        <span class="badge bg-light text-dark"><i class="fas fa-lock"></i> 40%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progression-header {
+        text-align: center;
+        padding: 2rem 0;
+    }
+    
+    .stat-card {
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        height: 100%;
+        display: flex;
+        align-items: center;
+        transition: transform 0.3s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-right: 1rem;
+        opacity: 0.8;
+    }
+    
+    .stat-content h3 {
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+    
+    .stat-content p {
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+    
+    .stat-content small {
+        opacity: 0.9;
+    }
+    
+    .level-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        height: 100%;
+    }
+    
+    .level-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .level-header h4 {
+        margin: 0;
+        font-size: 1.2rem;
+    }
+    
+    .level-percentage {
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    
+    .level-tutorials {
+        margin-top: 1rem;
+    }
+    
+    .tutorial-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem;
+    }
+    
+    .tutorial-item:last-child {
+        border-bottom: none;
+    }
+    
+    .tutorial-progress-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        border-left: 4px solid #667eea;
+    }
+    
+    .progress-wrapper {
+        max-width: 400px;
+    }
+    
+    .score-display .score-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+    
+    .lessons-list {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+    }
+    
+    .lesson-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .lesson-item:last-child {
+        border-bottom: none;
+    }
+    
+    .empty-state {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 3rem;
+    }
+    
+    .achievement-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+        height: 100%;
+    }
+    
+    .achievement-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .achievement-icon {
+        color: #667eea;
+    }
+    
+    .achievement-card h5 {
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .achievement-status .badge {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    
+    @media (max-width: 768px) {
+        .stat-card {
+            flex-direction: column;
+            text-align: center;
+            padding: 1rem;
+        }
+        
+        .stat-icon {
+            margin-right: 0;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tutorial-progress-card .row > div {
+            margin-bottom: 1rem;
+        }
+        
+        .tutorial-progress-card .text-end {
+            text-align: left !important;
+        }
+        
+        .achievement-card {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Animation pour les cartes de progression
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animer les barres de progression
+        const progressBars = document.querySelectorAll('.progress-bar');
+        progressBars.forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0';
+            setTimeout(() => {
+                bar.style.width = width;
+                bar.style.transition = 'width 1.5s ease';
+            }, 300);
+        });
+        
+        // Gestion de l'affichage des leçons
+        const collapseButtons = document.querySelectorAll('[data-bs-toggle="collapse"]');
+        collapseButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const icon = this.querySelector('i');
+                if (icon.classList.contains('fa-chevron-down')) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                } else {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

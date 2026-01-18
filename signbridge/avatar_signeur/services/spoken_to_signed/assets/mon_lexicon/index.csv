@@ -1,0 +1,8 @@
+path,spoken_language,signed_language,start,end,words,glosses,priority
+BONJOUR.pose,fr,ssr,0,0,bonjour,BONJOUR,0
+BIEN.pose,fr,ssr,0,0,bien,BIEN,0
+ALLER.pose,fr,ssr,0,0,aller,ALLER,0
+ECOLE.pose,fr,ssr,0,0,école,ECOLE,0
+COMMENTTUTAPPELLES.pose,fr,ssr,0,0,comment tu t appelles,COMMENTTUTAPPELLES,0
+OUVISTU.pose,fr,ssr,0,0,ou vis tu,OUVISTU,0
+QUELAGEASTU.pose,fr,ssr,0,0,quel age as tu,QUELAGEASTU,0

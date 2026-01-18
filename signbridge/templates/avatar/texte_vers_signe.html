@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Texte vers Signes - SignBridge{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+
+            <!-- Formulaire de saisie -->
+            <div class="card shadow-lg mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Entrez votre texte</h5>
+                </div>
+                <div class="card-body">
+                    <form id="formTraduction">
+                        {% csrf_token %}
+                        
+                        <!-- Zone de texte -->
+                        <div class="mb-3">
+                            <label for="texte" class="form-label">Texte à traduire</label>
+                            <textarea 
+                                class="form-control" 
+                                id="texte" 
+                                name="texte" 
+                                rows="4" 
+                                placeholder="Entrez votre texte ici..."
+                                required>Comment tu t appelles</textarea>
+                            <small class="text-muted">
+                                 Phrase de test : "Comment tu t appelles" ou "Quel age as tu"
+                            </small>
+                        </div>
+
+                        <!-- Sélection des langues -->
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="langue_parlee" class="form-label">Langue parlée</label>
+                                <select class="form-select" id="langue_parlee" name="langue_parlee">
+                                    <option value="de">Allemand</option>
+                                    <option value="fr" selected>Français</option>
+                                </select>
+                                <small class="text-muted">🇫🇷 Français maintenant supporté !</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="langue_signee" class="form-label">Langue des signes</label>
+                                <select class="form-select" id="langue_signee" name="langue_signee">
+                                    <option value="sgg">🇨🇭 LSA (Suisse-Allemand)</option>
+                                    <option value="mar" selected>🇲🇦 LSM (Marocain)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Boutons d'action -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="btnGenerer">
+                                <span id="btnText"> Générer</span>
+                                <span id="btnLoader" class="d-none">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    Génération en cours...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Zone de résultat -->
+            <div id="resultatZone" class="d-none">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">✅ Résultat</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultatContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages d'erreur -->
+            <div id="erreurZone" class="d-none mt-3">
+                <div class="alert alert-danger" role="alert">
+                    <h5 class="alert-heading">❌ Erreur</h5>
+                    <p id="erreurMessage"></p>
+                </div>
+            </div>
+
+            <!-- Historique récent -->
+            {% if historique %}
+            <div class="card shadow mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"> Historique récent</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for trad in historique %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ trad.texte_original|truncatewords:10 }}</h6>
+                                    <small class="text-muted">
+                                        {{ trad.date_creation|date:"d/m/Y H:i" }} - 
+                                        {% if trad.statut == 'termine' %}
+                                            <span class="badge bg-success">Terminé</span>
+                                        {% elif trad.statut == 'en_traitement' %}
+                                            <span class="badge bg-warning">En traitement</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Erreur</span>
+                                        {% endif %}
+                                    </small>
+                                    
+                                    {% if trad.video_generee %}
+                                    <div class="mt-2">
+                                        <video controls style="max-width: 300px; border-radius: 5px;">
+                                            <source src="{{ trad.video_generee.url }}" type="video/mp4">
+                                        </video>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if trad.fichier_pose %}
+                                <div class="d-flex flex-column gap-1">
+                                    {% if trad.video_generee %}
+                                    <a href="{{ trad.video_generee.url }}" 
+                                       class="btn btn-sm btn-outline-success"
+                                       download>
+                                         Vidéo
+                                    </a>
+                                    {% else %}
+                                    <button onclick="genererVideo({{ trad.id }})" 
+                                            class="btn btn-sm btn-outline-warning">
+                                        🔄 Vidéo
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('formTraduction').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // UI Updates
+    const btnGenerer = document.getElementById('btnGenerer');
+    const btnText = document.getElementById('btnText');
+    const btnLoader = document.getElementById('btnLoader');
+    const resultatZone = document.getElementById('resultatZone');
+    const erreurZone = document.getElementById('erreurZone');
+    
+    // Désactiver le bouton et afficher le loader
+    btnGenerer.disabled = true;
+    btnText.classList.add('d-none');
+    btnLoader.classList.remove('d-none');
+    resultatZone.classList.add('d-none');
+    erreurZone.classList.add('d-none');
+    
+    try {
+        const formData = new FormData(this);
+        
+        const response = await fetch('{% url "avatar:generer_pose" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Afficher le résultat avec la vidéo
+            let resultatHTML = `
+                <div class="alert alert-success">
+                    <h5>✅ Traduction générée avec succès !</h5>
+                    <p class="mb-2">Temps de traitement : ${data.temps_traitement.toFixed(2)}s</p>
+            `;
+            
+            // Si la vidéo a été générée
+            if (data.video_url) {
+                resultatHTML += `
+                    <div class="mt-3 mb-3">
+                        <h6>🎬 Vidéo de l'avatar :</h6>
+                        <video controls class="w-100" style="max-width: 600px; border-radius: 10px;">
+                            <source src="${data.video_url}" type="video/mp4">
+                            Votre navigateur ne supporte pas la lecture vidéo.
+                        </video>
+                    </div>
+                `;
+            }
+            
+            resultatHTML += `
+                    <div class="mt-3">
+                        <a href="${data.pose_url}" class="btn btn-primary" download>
+                            📥 Télécharger .pose
+                        </a>
+            `;
+            
+            if (data.video_url) {
+                resultatHTML += `
+                        <a href="${data.video_url}" class="btn btn-success" download>
+                            🎬 Télécharger vidéo
+                        </a>
+                `;
+            } else if (data.warning) {
+                resultatHTML += `
+                        <button onclick="genererVideo(${data.traduction_id})" 
+                                class="btn btn-warning">
+                            🔄 Réessayer la vidéo
+                        </button>
+                `;
+            }
+            
+            resultatHTML += `
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('resultatContent').innerHTML = resultatHTML;
+            resultatZone.classList.remove('d-none');
+            
+            // Recharger la page après 3 secondes pour afficher l'historique mis à jour
+            setTimeout(() => location.reload(), 3000);
+        } else {
+            // Afficher l'erreur
+            document.getElementById('erreurMessage').textContent = data.message;
+            erreurZone.classList.remove('d-none');
+        }
+    } catch (error) {
+        document.getElementById('erreurMessage').textContent = 
+            'Une erreur inattendue s\'est produite : ' + error.message;
+        erreurZone.classList.remove('d-none');
+    } finally {
+        // Réactiver le bouton
+        btnGenerer.disabled = false;
+        btnText.classList.remove('d-none');
+        btnLoader.classList.add('d-none');
+    }
+});
+
+async function genererVideo(traductionId) {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Génération...';
+    
+    try {
+        // Récupérer le token CSRF du formulaire
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        const response = await fetch(`/avatar/generer-video/${traductionId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Vidéo générée avec succès !');
+            // Ouvrir la vidéo dans un nouvel onglet
+            window.open(data.video_url, '_blank');
+        } else {
+            alert('❌ Erreur : ' + data.message);
+        }
+    } catch (error) {
+        alert('❌ Erreur inattendue : ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+</script>
+
+<style>
+.card {
+    border-radius: 15px;
+    border: none;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.btn-lg {
+    padding: 15px 30px;
+    font-size: 1.1rem;
+}
+
+.list-group-item {
+    border-radius: 10px !important;
+    margin-bottom: 10px;
+    border: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ lecon.titre }} - {{ tutorial.titre }}{% endblock %}
+
+{% block content %}
+<div class="container-narrow py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'accueil' %}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'tutoriel:catalogue' %}">Tutoriels</a></li>
+            <li class="breadcrumb-item"><a href="#">{{ tutorial.titre }}</a></li>
+            <li class="breadcrumb-item active">{{ lecon.titre }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Left Column: Video & Content -->
+        <div class="col-lg-8">
+            <!-- Video Player -->
+            <div class="video-container mb-4">
+                <div class="video-wrapper">
+                    <!-- Version simplifiée avec controls natifs -->
+                    <video id="lesson-video" class="video-player" controls 
+                           poster="{% if tutorial.image_couverture %}{{ tutorial.image_couverture.url }}{% endif %}"
+                           style="width: 100%; border-radius: 10px;">
+                        <source src="{{ lecon.video.url }}" type="video/mp4">
+                        Votre navigateur ne supporte pas la lecture vidéo.
+                    </video>
+                </div>
+                
+                <!-- Completion Status -->
+                <div class="completion-status mt-3">
+                    {% if progression.est_completee %}
+                    <div class="alert alert-success d-flex align-items-center">
+                        <i class="fas fa-check-circle me-3 fa-2x"></i>
+                        <div>
+                            <h5 class="mb-0">Leçon terminée !</h5>
+                            <small>Complétée le {{ progression.date_completion|date:"d/m/Y" }}</small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Formulaire pour marquer comme terminée -->
+                    <form method="POST" action="{% url 'tutoriel:mark_completed' tutorial.id lecon.id %}" class="d-inline w-100">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100" id="mark-complete">
+                            <i class="fas fa-check me-2"></i>Marquer comme terminée
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Lesson Content -->
+            <div class="lesson-content mb-5">
+                <h1 class="lesson-title mb-4">{{ lecon.titre }}</h1>
+                
+                <div class="lesson-meta mb-4">
+                    <span class="badge bg-primary me-2">
+                        <i class="fas fa-clock me-1"></i> {{ lecon.duree }} secondes
+                    </span>
+                    <span class="badge bg-secondary me-2">
+                        Leçon {{ lecon.ordre }} sur {{ tutorial.lecons.count }}
+                    </span>
+                    {% if lecon.quiz %}
+                    <span class="badge bg-warning">
+                        <i class="fas fa-question-circle me-1"></i> Quiz disponible
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <div class="lesson-text">
+                    {{ lecon.texte_explicatif|linebreaks }}
+                </div>
+                
+                <!-- Key Points -->
+                <div class="key-points mt-4">
+                    <h5><i class="fas fa-lightbulb me-2"></i>Points clés à retenir</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">Position des mains</li>
+                        <li class="list-group-item">Mouvement du signe</li>
+                        <li class="list-group-item">Expression faciale</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Navigation & Resources -->
+        <div class="col-lg-4">
+            <!-- Course Navigation -->
+            <div class="course-sidebar">
+                <div class="sidebar-header">
+                    <h5><i class="fas fa-list-ol me-2"></i>Plan du cours</h5>
+                    <small>{{ tutorial.lecons.count }} leçons</small>
+                </div>
+                
+                <div class="lessons-list">
+                    {% for other_lecon in tutorial.lecons.all %}
+                    <a href="{% url 'tutoriel:lecon_detail' tutorial_id=tutorial.id lecon_id=other_lecon.id %}" 
+                       class="lesson-item {% if lecon.id == other_lecon.id %}active{% endif %}"
+                       data-lecon-id="{{ other_lecon.id }}">
+                        <div class="lesson-number">{{ other_lecon.ordre }}</div>
+                        <div class="lesson-info">
+                            <h6>{{ other_lecon.titre }}</h6>
+                            <small>{{ other_lecon.duree }} sec</small>
+                        </div>
+                        <div class="lesson-status">
+                            {% if other_lecon.id == lecon.id %}
+                            <i class="fas fa-play text-primary"></i>
+                            {% else %}
+                            {% with user_progression=other_lecon.progression_set.filter_utilisateur|first %}
+                                {% if user_progression and user_progression.est_completee %}
+                                <i class="fas fa-check-circle text-success"></i>
+                                {% else %}
+                                <i class="fas fa-circle text-muted"></i>
+                                {% endif %}
+                            {% endwith %}
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                
+                <!-- Quiz Section -->
+                {% if lecon.quiz %}
+                <div class="quiz-card mt-4">
+                    <div class="quiz-header">
+                        <h5><i class="fas fa-graduation-cap me-2"></i>Testez vos connaissances</h5>
+                    </div>
+                    <div class="quiz-body">
+                        <p>Passez le quiz pour valider vos acquis sur cette leçon.</p>
+                        <div class="d-grid">
+                            <a href="{% url 'tutoriel:passer_quiz' lecon.quiz.id %}" class="btn btn-warning">
+                                <i class="fas fa-play-circle me-2"></i>Commencer le quiz
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Navigation Buttons -->
+                <div class="navigation-buttons mt-4">
+                    <div class="d-flex justify-content-between">
+                        {% if prev_lecon %}
+                        <a href="{% url 'tutoriel:lecon_detail' tutorial_id=tutorial.id lecon_id=prev_lecon.id %}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Précédent
+                        </a>
+                        {% else %}
+                        <div></div>
+                        {% endif %}
+                        
+                        {% if next_lecon %}
+                        <a href="{% url 'tutoriel:lecon_detail' tutorial_id=tutorial.id lecon_id=next_lecon.id %}" 
+                           class="btn btn-primary">
+                            Suivant <i class="fas fa-arrow-right ms-2"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-marquer comme terminé après la vidéo
+    const video = document.getElementById('lesson-video');
+    const completeForm = document.querySelector('form[action*="mark_completed"]');
+    const completeBtn = document.getElementById('mark-complete');
+    
+    if (video && completeBtn) {
+        video.addEventListener('ended', function() {
+            // Demander confirmation
+            if (confirm('Vidéo terminée ! Voulez-vous marquer cette leçon comme complétée ?')) {
+                // Afficher un effet de chargement
+                const originalHTML = completeBtn.innerHTML;
+                completeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>En cours...';
+                completeBtn.disabled = true;
+                
+                // Soumettre le formulaire après un court délai
+                setTimeout(() => {
+                    if (completeForm) {
+                        completeForm.submit();
+                    }
+                }, 500);
+            }
+        });
+    }
+    
+    // Gestion du clic sur le bouton "Marquer comme terminée"
+    if (completeBtn) {
+        completeBtn.addEventListener('click', function(e) {
+            // Option: demander confirmation
+            if (!confirm('Êtes-vous sûr de vouloir marquer cette leçon comme terminée ?')) {
+                e.preventDefault();
+            }
+        });
+    }
+</script>
+
+<style>
+    .video-wrapper {
+        position: relative;
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .course-sidebar {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid #eee;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .sidebar-header h5 {
+        margin: 0;
+    }
+    
+    .lessons-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .lesson-item {
+        display: flex;
+        align-items: center;
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+        text-decoration: none;
+        color: #333;
+        transition: background 0.3s;
+    }
+    
+    .lesson-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .lesson-item.active {
+        background: #e3f2fd;
+        border-left: 4px solid #2196F3;
+    }
+    
+    .lesson-number {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #eee;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 15px;
+        font-size: 0.9rem;
+    }
+    
+    .lesson-item.active .lesson-number {
+        background: #2196F3;
+        color: white;
+    }
+    
+    .lesson-info {
+        flex: 1;
+    }
+    
+    .lesson-info h6 {
+        margin-bottom: 2px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .lesson-info small {
+        color: #888;
+        font-size: 0.8rem;
+    }
+    
+    .lesson-status {
+        font-size: 1.2rem;
+    }
+    
+    .quiz-card {
+        background: #fff8e1;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 2px solid #ffd54f;
+    }
+    
+    .quiz-header {
+        padding: 15px;
+        background: #ffd54f;
+        color: #333;
+    }
+    
+    .quiz-header h5 {
+        margin: 0;
+        font-size: 1rem;
+    }
+    
+    .quiz-body {
+        padding: 20px;
+    }
+    
+    .quiz-body p {
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+    }
+    
+    .key-points {
+        background: #e8f5e9;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #4CAF50;
+    }
+    
+    .key-points h5 {
+        color: #2e7d32;
+        margin-bottom: 15px;
+    }
+    
+    .list-group-item {
+        background: transparent;
+        border-color: rgba(0,0,0,0.1);
+        padding: 10px 0;
+    }
+    
+    .completion-status form {
+        margin: 0;
+    }
+    
+    .container-narrow {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    @media (max-width: 768px) {
+        .container-narrow {
+            padding: 15px;
+        }
+        
+        .lesson-meta .badge {
+            margin-bottom: 5px;
+            display: inline-block;
+        }
+    }
+</style>
+{% endblock %}

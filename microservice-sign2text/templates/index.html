@@ -1,0 +1,280 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language Detection</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #b0fc94 0%, #dac8ec 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        overflow: hidden;
+    }
+
+    header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        text-align: center;
+    }
+
+    .content {
+        padding: 20px;
+    }
+
+    /* ====== TOP : SIGNE + STATUS (PLUS PETIT) ====== */
+    .prediction-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .prediction-box {
+        background: linear-gradient(135deg, #82db9b 0%, #5ac0ef 100%);
+        color: white;
+        padding: 10px;
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    .prediction-box h2 {
+        font-size: 1rem;
+        margin-bottom: 4px;
+    }
+
+    #predicted-text {
+        font-size: 2rem; /* encore réduit */
+        font-weight: bold;
+        line-height: 1.1;
+    }
+
+    #confidence {
+        margin-top: 3px;
+        font-size: 0.9rem;
+    }
+
+    .status-box {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #333;
+        padding: 10px;
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    #status-text {
+        font-size: 1.1rem;
+    }
+
+    #count-text {
+        font-size: 1rem;
+        margin-top: 5px;
+        font-weight: bold;
+    }
+
+    /* ====== MIDDLE : CAMERA + PHRASE ====== */
+    .main-section {
+        display: flex;
+        gap: 20px;
+    }
+
+    .left-column {
+        flex: 0.9; /* caméra légèrement plus petite */
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 12px;
+    }
+
+    #video {
+        width: 95%; /* réduction visuelle */
+        margin: auto;
+        display: block;
+        border-radius: 5px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    .right-column {
+        flex: 1.1;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        padding: 18px;
+        border-radius: 12px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .right-column h2 {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+    }
+
+    #sentence-text {
+        background: rgba(255,255,255,0.2);
+        padding: 15px;
+        border-radius: 10px;
+        min-height: 90px;
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+    }
+
+    .controls {
+        display: flex;
+        gap: 10px;
+    }
+
+    button {
+        flex: 1;
+        padding: 8px;
+        font-size: 0.95rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    #add-btn { background: #28a745; color: white; }
+    #space-btn { background: #17a2b8; color: white; }
+    #clear-btn { background: #dc3545; color: white; }
+
+    /* ====== CONNECTION STATUS ====== */
+    .status {
+        margin-top: 10px;
+        text-align: center;
+        padding: 10px;
+        border-radius: 10px;
+        background: #d4edda;
+        color: #155724;
+        font-size: 0.95rem;
+    }
+
+    /* ====== RESPONSIVE ====== */
+    @media (max-width: 1024px) {
+        .main-section {
+            flex-direction: column;
+        }
+
+        .prediction-section {
+            grid-template-columns: 1fr;
+        }
+
+        #video {
+            width: 100%;
+        }
+    }
+</style>
+
+</head>
+
+<body>
+<div class="container">
+    <header>
+    </header>
+
+    <div class="content">
+
+        <!-- SIGNE + STATUS AU-DESSUS -->
+        <div class="prediction-section">
+            <div class="prediction-box">
+                <h2>Signe détecté</h2>
+                <div id="predicted-text">-</div>
+                <div id="confidence">Confiance: 0%</div>
+            </div>
+
+            <div class="status-box">
+                <h2>Statut</h2>
+                <div id="status-text">En attente...</div>
+                <div id="count-text">0/5</div>
+                <div style="margin-top:10px;">Maintenez le signe</div>
+            </div>
+        </div>
+
+        <!-- CAMERA + PHRASE CÔTE À CÔTE -->
+        <div class="main-section">
+            <div class="left-column">
+                <img id="video" src="{{ url_for('video_feed') }}">
+            </div>
+
+            <div class="right-column">
+                <h2>Phrase construite</h2>
+                <div id="sentence-text">Commencez à signer...</div>
+
+                <div class="controls">
+                    <button id="add-btn">Ajouter</button>
+                    <button id="space-btn">␣ Espace</button>
+                    <button id="clear-btn">Effacer</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="status" id="connection-status">
+            Connected to server.
+        </div>
+
+    </div>
+</div>
+
+<!-- ====== JS INCHANGÉ ====== -->
+<script>
+    const socket = io();
+    let currentSentence = '';
+    let lastPrediction = '';
+    let predictionCount = 0;
+    const THRESHOLD = 5;
+
+    socket.on('prediction', function(data) {
+        document.getElementById('predicted-text').textContent = data.text;
+        document.getElementById('confidence').textContent =
+            `Confiance: ${(data.confidence * 100).toFixed(1)}%`;
+
+        if (data.text === lastPrediction && data.confidence > 0.7) {
+            predictionCount++;
+            document.getElementById('count-text').textContent = `${predictionCount}/${THRESHOLD}`;
+
+            if (predictionCount >= THRESHOLD) {
+                addToSentence(data.text);
+                predictionCount = 0;
+                lastPrediction = '';
+            }
+        } else {
+            lastPrediction = data.text;
+            predictionCount = 1;
+        }
+    });
+
+    function addToSentence(text) {
+        currentSentence += text + ' ';
+        document.getElementById('sentence-text').textContent = currentSentence;
+    }
+
+    document.getElementById('add-btn').onclick = () => addToSentence(lastPrediction);
+    document.getElementById('space-btn').onclick = () => {
+        currentSentence += ' ';
+        document.getElementById('sentence-text').textContent = currentSentence;
+    };
+    document.getElementById('clear-btn').onclick = () => {
+        currentSentence = '';
+        document.getElementById('sentence-text').textContent = 'Commencez à signer...';
+    };
+</script>
+
+</body>
+</html>
