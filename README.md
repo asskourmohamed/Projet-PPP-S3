@@ -2,7 +2,7 @@
 Plateforme web de traduction et d’apprentissage de la Langue des Signes
 
 ##  Présentation
-**SignBridge** est une application web dédiée à la **traduction bidirectionnelle entre la langue des signes et le texte**, ainsi qu’à **l’apprentissage interactif de la Langue des Signes Française (LSF)**.
+**SignBridge** est une application web dédiée à la **traduction bidirectionnelle entre la langue des signes et le texte**, ainsi qu’à **l’apprentissage interactif de la Langue des Signes **.
 
 Ce projet a été réalisé dans le cadre du **Projet Personnel et Professionnel** à l’**Institut National des Postes et Télécommunications (INPT)**.
 
