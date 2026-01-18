@@ -73,7 +73,7 @@ Ce projet a été réalisé dans le cadre du **Projet Personnel et Professionnel
 ## Architecture du projet
 Le projet suit une architecture **MVT (Model-View-Template)** avec une organisation modulaire :
 
-projet_lsf/<br>
+signebridge/<br>
 ├── config/               # Configuration du projet Django<br>
 ├── lsf_app/              # Application principale<br>
 ├── traduction_signes/    # Module de traduction Signes → Texte<br>
